@@ -1,4 +1,5 @@
 import request from "supertest";
+import { randomUUID } from "crypto";
 import { createApp } from "../app";
 import { createInventoryRecord, createItem, createLocation, createUser } from "./factories";
 
@@ -34,7 +35,7 @@ describe("inventory constraints", () => {
     const res = await request(app)
       .post(`/api/inventory/${inventory.id}/adjust`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ delta: -20, idempotencyKey: "adj-1" });
+      .send({ delta: -20, idempotencyKey: randomUUID() });
 
     expect(res.status).toBe(409);
   });
@@ -48,18 +49,19 @@ describe("inventory constraints", () => {
       physicalQuantity: 10,
     });
     const { token } = await createUser("OPERATIONS");
+    const idempotencyKey = randomUUID();
 
     const first = await request(app)
       .post(`/api/inventory/${inventory.id}/adjust`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ delta: 5, idempotencyKey: "same-key" });
+      .send({ delta: 5, idempotencyKey });
     expect(first.status).toBe(200);
     expect(first.body.physicalQuantity).toBe(15);
 
     const second = await request(app)
       .post(`/api/inventory/${inventory.id}/adjust`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ delta: 5, idempotencyKey: "same-key" });
+      .send({ delta: 5, idempotencyKey });
     expect(second.status).toBe(409);
 
     const res = await request(app).get("/api/inventory").set("Authorization", `Bearer ${token}`);
@@ -71,6 +73,7 @@ describe("inventory constraints", () => {
     const location = await createLocation();
     const item = await createItem();
     const { token } = await createUser("OPERATIONS");
+    const batch = `BATCH-${randomUUID().slice(0, 8)}`;
 
     const first = await request(app)
       .post("/api/inventory")
@@ -78,9 +81,9 @@ describe("inventory constraints", () => {
       .send({
         itemId: item.id,
         locationId: location.id,
-        batch: "BATCH-X",
+        batch,
         physicalQuantity: 10,
-        idempotencyKey: "create-1",
+        idempotencyKey: randomUUID(),
       });
     expect(first.status).toBe(201);
 
@@ -90,9 +93,9 @@ describe("inventory constraints", () => {
       .send({
         itemId: item.id,
         locationId: location.id,
-        batch: "BATCH-X",
+        batch,
         physicalQuantity: 5,
-        idempotencyKey: "create-2",
+        idempotencyKey: randomUUID(),
       });
     expect(second.status).toBe(409);
   });
