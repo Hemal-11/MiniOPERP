@@ -4,6 +4,9 @@ import { apiRequest, ApiClientError } from "../api/client";
 import type { CustomerOrder, InventoryRecord } from "../api/types";
 import { useAuth } from "../context/AuthContext";
 import { Banner } from "../components/Banner";
+import { Spinner } from "../components/Spinner";
+import { PageTransition } from "../components/PageTransition";
+import { OrderIcon } from "../components/Icons";
 
 export function OrdersPage() {
   const { user } = useAuth();
@@ -71,7 +74,7 @@ export function OrdersPage() {
   }
 
   return (
-    <div>
+    <PageTransition>
       <h2>Customer Orders</h2>
       <Banner kind="error" message={error} />
       <Banner kind="success" message={success} />
@@ -112,49 +115,56 @@ export function OrdersPage() {
       )}
 
       {loading ? (
-        <p>Loading…</p>
+        <Spinner label="Loading orders" />
+      ) : orders.length === 0 ? (
+        <div className="empty-state">
+          <OrderIcon width={28} height={28} />
+          <p>No customer orders yet.</p>
+        </div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Customer</th>
-              <th>Sales User</th>
-              <th>Item</th>
-              <th>Location / Batch</th>
-              <th>Qty</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((o) =>
-              o.orderLines.map((line) => (
-                <tr key={line.id}>
-                  <td>{o.code}</td>
-                  <td>{o.customerName}</td>
-                  <td>{o.salesUser.name}</td>
-                  <td>{line.inventoryRecord.item.name}</td>
-                  <td>
-                    {line.inventoryRecord.location.name} / {line.inventoryRecord.batch}
-                  </td>
-                  <td>{line.quantity}</td>
-                  <td>
-                    <span className={`status-badge status-${o.status.toLowerCase()}`}>
-                      {o.status}
-                    </span>
-                  </td>
-                  <td>
-                    {canCreate && o.status === "OPEN" && (
-                      <button onClick={() => handleCancel(o.id)}>Cancel</button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Customer</th>
+                <th>Sales User</th>
+                <th>Item</th>
+                <th>Location / Batch</th>
+                <th>Qty</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((o, i) =>
+                o.orderLines.map((line) => (
+                  <tr key={line.id} style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
+                    <td>{o.code}</td>
+                    <td>{o.customerName}</td>
+                    <td>{o.salesUser.name}</td>
+                    <td>{line.inventoryRecord.item.name}</td>
+                    <td>
+                      {line.inventoryRecord.location.name} / {line.inventoryRecord.batch}
+                    </td>
+                    <td>{line.quantity}</td>
+                    <td>
+                      <span className={`status-badge status-${o.status.toLowerCase()}`}>
+                        {o.status}
+                      </span>
+                    </td>
+                    <td>
+                      {canCreate && o.status === "OPEN" && (
+                        <button onClick={() => handleCancel(o.id)}>Cancel</button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

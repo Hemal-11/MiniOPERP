@@ -5,6 +5,9 @@ import type { InventoryRecord } from "../api/types";
 import { useReferenceData } from "../api/useReferenceData";
 import { useAuth } from "../context/AuthContext";
 import { Banner } from "../components/Banner";
+import { Spinner } from "../components/Spinner";
+import { PageTransition } from "../components/PageTransition";
+import { InventoryIcon } from "../components/Icons";
 
 export function InventoryPage() {
   const { user } = useAuth();
@@ -80,7 +83,7 @@ export function InventoryPage() {
   }
 
   return (
-    <div>
+    <PageTransition>
       <h2>Inventory</h2>
       <Banner kind="error" message={error} />
       <Banner kind="success" message={success} />
@@ -133,51 +136,58 @@ export function InventoryPage() {
       )}
 
       {loading ? (
-        <p>Loading…</p>
+        <Spinner label="Loading inventory" />
+      ) : records.length === 0 ? (
+        <div className="empty-state">
+          <InventoryIcon width={28} height={28} />
+          <p>No inventory records yet.</p>
+        </div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Category</th>
-              <th>Location</th>
-              <th>Batch</th>
-              <th>Physical</th>
-              <th>Reserved</th>
-              <th>Available</th>
-              {canManage && <th>Adjust</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {records.map((r) => (
-              <tr key={r.id}>
-                <td>{r.item.name} ({r.item.sku})</td>
-                <td>{r.item.category?.name}</td>
-                <td>{r.location.name}</td>
-                <td>{r.batch}</td>
-                <td>{r.physicalQuantity}</td>
-                <td>{r.reservedQuantity}</td>
-                <td>{r.availableQuantity}</td>
-                {canManage && (
-                  <td>
-                    <div className="adjust-cell">
-                      <input
-                        type="number"
-                        placeholder="+/-"
-                        value={adjustQty[r.id] ?? ""}
-                        onChange={(e) =>
-                          setAdjustQty((prev) => ({ ...prev, [r.id]: e.target.value }))
-                        }
-                      />
-                      <button onClick={() => handleAdjust(r.id)}>Apply</button>
-                    </div>
-                  </td>
-                )}
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Category</th>
+                <th>Location</th>
+                <th>Batch</th>
+                <th>Physical</th>
+                <th>Reserved</th>
+                <th>Available</th>
+                {canManage && <th>Adjust</th>}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {records.map((r, i) => (
+                <tr key={r.id} style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
+                  <td>{r.item.name} ({r.item.sku})</td>
+                  <td>{r.item.category?.name}</td>
+                  <td>{r.location.name}</td>
+                  <td>{r.batch}</td>
+                  <td>{r.physicalQuantity}</td>
+                  <td>{r.reservedQuantity}</td>
+                  <td className="cell-strong">{r.availableQuantity}</td>
+                  {canManage && (
+                    <td>
+                      <div className="adjust-cell">
+                        <input
+                          type="number"
+                          placeholder="+/-"
+                          value={adjustQty[r.id] ?? ""}
+                          onChange={(e) =>
+                            setAdjustQty((prev) => ({ ...prev, [r.id]: e.target.value }))
+                          }
+                        />
+                        <button onClick={() => handleAdjust(r.id)}>Apply</button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

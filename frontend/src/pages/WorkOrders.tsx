@@ -5,6 +5,9 @@ import type { WorkOrder, WorkOrderStatus } from "../api/types";
 import { useReferenceData, useUsers } from "../api/useReferenceData";
 import { useAuth } from "../context/AuthContext";
 import { Banner } from "../components/Banner";
+import { Spinner } from "../components/Spinner";
+import { PageTransition } from "../components/PageTransition";
+import { WorkOrderIcon } from "../components/Icons";
 
 const NEXT_STATUS: Partial<Record<WorkOrderStatus, WorkOrderStatus>> = {
   ASSIGNED: "IN_PROGRESS",
@@ -82,7 +85,7 @@ export function WorkOrdersPage() {
   }
 
   return (
-    <div>
+    <PageTransition>
       <h2>Work Orders</h2>
       <Banner kind="error" message={error} />
       <Banner kind="success" message={success} />
@@ -141,50 +144,57 @@ export function WorkOrdersPage() {
       )}
 
       {loading ? (
-        <p>Loading…</p>
+        <Spinner label="Loading work orders" />
+      ) : workOrders.length === 0 ? (
+        <div className="empty-state">
+          <WorkOrderIcon width={28} height={28} />
+          <p>No work orders yet.</p>
+        </div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Location</th>
-              <th>Item</th>
-              <th>Required</th>
-              <th>Shortage</th>
-              <th>Assigned</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {workOrders.map((wo) => (
-              <tr key={wo.id}>
-                <td>{wo.code}</td>
-                <td>{wo.location.name}</td>
-                <td>{wo.item.name}</td>
-                <td>{wo.requiredQuantity}</td>
-                <td className={wo.shortageQuantity > 0 ? "text-warning" : ""}>
-                  {wo.shortageQuantity}
-                </td>
-                <td>{wo.assignedUser.name}</td>
-                <td>
-                  <span className={`status-badge status-${wo.status.toLowerCase()}`}>
-                    {wo.status}
-                  </span>
-                </td>
-                <td>
-                  {(user?.role === "ADMIN" || user?.id === wo.assignedUserId) &&
-                    NEXT_STATUS[wo.status] && (
-                      <button onClick={() => advanceStatus(wo)}>
-                        Move to {NEXT_STATUS[wo.status]}
-                      </button>
-                    )}
-                </td>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Location</th>
+                <th>Item</th>
+                <th>Required</th>
+                <th>Shortage</th>
+                <th>Assigned</th>
+                <th>Status</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {workOrders.map((wo, i) => (
+                <tr key={wo.id} style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
+                  <td>{wo.code}</td>
+                  <td>{wo.location.name}</td>
+                  <td>{wo.item.name}</td>
+                  <td>{wo.requiredQuantity}</td>
+                  <td className={wo.shortageQuantity > 0 ? "text-warning" : ""}>
+                    {wo.shortageQuantity}
+                  </td>
+                  <td>{wo.assignedUser.name}</td>
+                  <td>
+                    <span className={`status-badge status-${wo.status.toLowerCase()}`}>
+                      {wo.status}
+                    </span>
+                  </td>
+                  <td>
+                    {(user?.role === "ADMIN" || user?.id === wo.assignedUserId) &&
+                      NEXT_STATUS[wo.status] && (
+                        <button onClick={() => advanceStatus(wo)}>
+                          Move to {NEXT_STATUS[wo.status]}
+                        </button>
+                      )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

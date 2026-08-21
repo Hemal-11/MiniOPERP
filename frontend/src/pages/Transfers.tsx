@@ -5,6 +5,9 @@ import type { Transfer } from "../api/types";
 import { useReferenceData } from "../api/useReferenceData";
 import { useAuth } from "../context/AuthContext";
 import { Banner } from "../components/Banner";
+import { Spinner } from "../components/Spinner";
+import { PageTransition } from "../components/PageTransition";
+import { TransferIcon } from "../components/Icons";
 
 export function TransfersPage() {
   const { user } = useAuth();
@@ -75,7 +78,7 @@ export function TransfersPage() {
   }
 
   return (
-    <div>
+    <PageTransition>
       <h2>Internal Transfers</h2>
       <Banner kind="error" message={error} />
       <Banner kind="success" message={success} />
@@ -140,48 +143,55 @@ export function TransfersPage() {
       )}
 
       {loading ? (
-        <p>Loading…</p>
+        <Spinner label="Loading transfers" />
+      ) : transfers.length === 0 ? (
+        <div className="empty-state">
+          <TransferIcon width={28} height={28} />
+          <p>No internal transfers yet.</p>
+        </div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Source</th>
-              <th>Destination</th>
-              <th>Item</th>
-              <th>Batch</th>
-              <th>Qty</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {transfers.map((t) => (
-              <tr key={t.id}>
-                <td>{t.code}</td>
-                <td>{t.sourceLocation.name}</td>
-                <td>{t.destinationLocation.name}</td>
-                <td>{t.item.name}</td>
-                <td>{t.batch}</td>
-                <td>{t.quantity}</td>
-                <td>
-                  <span className={`status-badge status-${t.status.toLowerCase()}`}>
-                    {t.status}
-                  </span>
-                </td>
-                <td>
-                  {canManage && t.status === "REQUESTED" && (
-                    <button onClick={() => handleAction(t.id, "dispatch")}>Dispatch</button>
-                  )}
-                  {canManage && t.status === "DISPATCHED" && (
-                    <button onClick={() => handleAction(t.id, "receive")}>Receive</button>
-                  )}
-                </td>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Item</th>
+                <th>Batch</th>
+                <th>Qty</th>
+                <th>Status</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {transfers.map((t, i) => (
+                <tr key={t.id} style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}>
+                  <td>{t.code}</td>
+                  <td>{t.sourceLocation.name}</td>
+                  <td>{t.destinationLocation.name}</td>
+                  <td>{t.item.name}</td>
+                  <td>{t.batch}</td>
+                  <td>{t.quantity}</td>
+                  <td>
+                    <span className={`status-badge status-${t.status.toLowerCase()}`}>
+                      {t.status}
+                    </span>
+                  </td>
+                  <td>
+                    {canManage && t.status === "REQUESTED" && (
+                      <button onClick={() => handleAction(t.id, "dispatch")}>Dispatch</button>
+                    )}
+                    {canManage && t.status === "DISPATCHED" && (
+                      <button onClick={() => handleAction(t.id, "receive")}>Receive</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </div>
+    </PageTransition>
   );
 }

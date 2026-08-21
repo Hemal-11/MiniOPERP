@@ -4,6 +4,13 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ApiClientError } from "../api/client";
 import { Banner } from "../components/Banner";
+import { Logo } from "../components/Logo";
+
+const QUICK_ACCOUNTS = [
+  { label: "Admin", email: "admin@erp.test" },
+  { label: "Operations", email: "ops@erp.test" },
+  { label: "Sales", email: "sales@erp.test" },
+];
 
 export function LoginPage() {
   const { user, login } = useAuth();
@@ -29,10 +36,20 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
+      <div className="login-blob login-blob-a" aria-hidden="true" />
+      <div className="login-blob login-blob-b" aria-hidden="true" />
+
       <form className="login-card" onSubmit={handleSubmit}>
-        <h1>Mini Op ERP</h1>
-        <p className="subtitle">Sign in to continue</p>
+        <div className="login-brand">
+          <Logo size={40} />
+          <div>
+            <h1>Mini Op ERP</h1>
+            <p className="subtitle">Sign in to continue</p>
+          </div>
+        </div>
+
         <Banner kind="error" message={error} />
+
         <label>
           Email
           <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
@@ -46,12 +63,29 @@ export function LoginPage() {
             required
           />
         </label>
-        <button type="submit" disabled={submitting}>
+        <button type="submit" disabled={submitting} className="submit-button">
+          {submitting ? <span className="spinner spinner-inline" aria-hidden="true" /> : null}
           {submitting ? "Signing in…" : "Sign in"}
         </button>
-        <p className="hint">
-          Seeded accounts: admin@erp.test / ops@erp.test / sales@erp.test (password: password123)
-        </p>
+
+        <div className="quick-accounts">
+          <span className="quick-accounts-label">Quick fill</span>
+          <div className="quick-accounts-row">
+            {QUICK_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.email}
+                type="button"
+                className="chip-button"
+                onClick={() => {
+                  setEmail(acc.email);
+                  setPassword("password123");
+                }}
+              >
+                {acc.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </form>
     </div>
   );
