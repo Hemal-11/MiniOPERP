@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERATIONS
+  SALES
+}
+
+enum WorkOrderStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TransferStatus {
+  REQUESTED
+  DISPATCHED
+  RECEIVED
+}
+
+enum OrderLineStatus {
+  RESERVED
+  FULFILLED
+  CANCELLED
+}
+
+enum InventoryTxnType {
+  RECEIPT
+  ADJUSTMENT
+  TRANSFER_OUT
+  TRANSFER_IN
+  RESERVATION
+  RELEASE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  // Judgment call: nullable location scope, unused by default endpoints today but
+  // present so "restrict user to assigned location" (a documented live-verification
+  // change) can be added without a schema migration.
+  locationId   String?
+  location     Location? @relation(fields: [locationId], references: [id])
+  createdAt    DateTime @default(now())
+
+  workOrders     WorkOrder[]     @relation("AssignedUser")
+  createdTransfers Transfer[]    @relation("CreatedByUser")
+  customerOrders CustomerOrder[] @relation("SalesUser")
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  users             User[]
+  inventoryRecords  InventoryRecord[]
+  workOrders        WorkOrder[]
+  transfersOut      Transfer[]        @relation("SourceLocation")
+  transfersIn       Transfer[]        @relation("DestLocation")
+}
+
+model Category {
+  id   String @id @default(uuid())
+  name String @unique
+
+  items Item[]
+}
+
+model Item {
+  id         String   @id @default(uuid())
+  sku        String   @unique
+  name       String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime @default(now())
+
+  inventoryRecords InventoryRecord[]
+  workOrders       WorkOrder[]
+  transfers        Transfer[]
+}
+
+// One row per item + location + batch. Available quantity is always derived
+// (physicalQuantity - reservedQuantity), never persisted, so it cannot drift
+// out of sync with the two source columns.
+model InventoryRecord {
+  id                String   @id @default(uuid())
+  itemId            String
+  locationId        String
+  batch             String
+  physicalQuantity  Int      @default(0)
+  reservedQuantity  Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  item     Item     @relation(fields: [itemId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+
+  transactions InventoryTransaction[]
+  orderLines   OrderLine[]
+
+  // Prisma's schema language has no native CHECK-constraint attribute, so the
+  // physicalQuantity >= 0, reservedQuantity >= 0 and reservedQuantity <= physicalQuantity
+  // invariants are added as raw SQL CHECK constraints in the migration (see
+  // prisma/migrations/.../migration.sql) as a second line of defense behind the
+  // application-level atomic conditional updates.
+  @@unique([itemId, locationId, batch])
+}
+
+// Append-only ledger of every stock movement. idempotencyKey guards against a
+// duplicate submission (e.g. a retried request) creating the same movement twice.
+model InventoryTransaction {
+  id                String            @id @default(uuid())
+  inventoryRecordId String
+  type              InventoryTxnType
+  quantity          Int
+  idempotencyKey    String            @unique
+  referenceType     String?
+  referenceId       String?
+  createdAt         DateTime          @default(now())
+
+  inventoryRecord InventoryRecord @relation(fields: [inventoryRecordId], references: [id])
+}
+
+model WorkOrder {
+  id                String          @id @default(uuid())
+  code              String          @unique
+  locationId        String
+  itemId            String
+  requiredQuantity  Int
+  assignedUserId    String
+  status            WorkOrderStatus @default(ASSIGNED)
+  shortageQuantity  Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  location     Location @relation(fields: [locationId], references: [id])
+  item         Item     @relation(fields: [itemId], references: [id])
+  assignedUser User     @relation("AssignedUser", fields: [assignedUserId], references: [id])
+}
+
+model Transfer {
+  id                  String         @id @default(uuid())
+  code                String         @unique
+  sourceLocationId    String
+  destinationLocationId String
+  itemId              String
+  batch               String
+  quantity            Int
+  status              TransferStatus @default(REQUESTED)
+  createdById         String
+  dispatchedAt        DateTime?
+  receivedAt          DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  sourceLocation      Location @relation("SourceLocation", fields: [sourceLocationId], references: [id])
+  destinationLocation Location @relation("DestLocation", fields: [destinationLocationId], references: [id])
+  item                Item     @relation(fields: [itemId], references: [id])
+  createdBy           User     @relation("CreatedByUser", fields: [createdById], references: [id])
+}
+
+model CustomerOrder {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  customerName String
+  salesUserId  String
+  status       String   @default("OPEN")
+  createdAt    DateTime @default(now())
+
+  salesUser  User        @relation("SalesUser", fields: [salesUserId], references: [id])
+  orderLines OrderLine[]
+}
+
+// A reservation against one specific inventory record (item + location + batch).
+// Judgment call: the Sales User picks the exact batch to reserve against rather
+// than the system auto-allocating across batches (FIFO splitting) — see README.
+model OrderLine {
+  id                String          @id @default(uuid())
+  orderId           String
+  inventoryRecordId String
+  quantity          Int
+  status            OrderLineStatus @default(RESERVED)
+  createdAt         DateTime        @default(now())
+
+  order           CustomerOrder   @relation(fields: [orderId], references: [id])
+  inventoryRecord InventoryRecord @relation(fields: [inventoryRecordId], references: [id])
+}

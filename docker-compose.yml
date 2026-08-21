@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp
+      POSTGRES_DB: mini_op_erp
+    ports:
+      # Host port 5436 to avoid clashing with other local Postgres instances.
+      # Update DATABASE_URL in your .env if you change this.
+      - "5436:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
